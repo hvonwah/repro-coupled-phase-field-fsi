@@ -1,4 +1,4 @@
-[![DOI](https://zenodo.org/badge/684649214.svg)](https://zenodo.org/badge/latestdoi/684649214)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10362611.svg)](https://doi.org/10.5281/zenodo.10362611)
 
 This repository contains the reproduction scripts and resulting data for the work "A coupled high-accuracy phase-field fluid-structure interaction framework for Stokes fluid-filled fracture surrounded by an elastic medium" by H. v. Wahl and T. Wick. The code is based in parts on our previous work [1].
 
