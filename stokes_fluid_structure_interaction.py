@@ -5,7 +5,7 @@ from xfem.mlset import *
 import numpy as np
 
 
-def stationary_stokes_fsi(mesh, order, data, rhs_data_fluid, bc_d='left|bottom|right|top', alpha_u=1e-14, harmonic_extension=True, compile_flag=False, info=True, newton_damp=1, newton_tol=1e-15, inverse='pardiso', condense=True):
+def stationary_stokes_fsi(mesh, order, data, rhs_data_fluid, bc_d='left|bottom|right|top', u_d_ih=None, bc_d_ih=None, alpha_u=1e-14, harmonic_extension=True, compile_flag=False, info=True, newton_damp=1, newton_tol=1e-14, inverse='pardiso', condense=False):
     '''
     Compute a stationary Stokes fluid-structure interaction problem.
 
@@ -21,6 +21,14 @@ def stationary_stokes_fsi(mesh, order, data, rhs_data_fluid, bc_d='left|bottom|r
         Dictionary containing the fluid and solid parameters.
     rhs_data_fluid : ngsolve.CoefficientFunction
         Right-hand side data for the fluid problem.
+    bc_d : string
+        Names of all Dirichlet boundaries.
+    u_d_ih : ngsolve.CoefficientFunction
+        If provided, the inhomogeneous Dirichlet boundary condition for
+        the velocity.
+    bc_d_ih : string
+        If given, the part of the boundary where the inhomogeneous
+        condition is to be applied.
     alpha_u : float
         Harmonic extension parameter
     harmonic_extension : bool
@@ -53,13 +61,15 @@ def stationary_stokes_fsi(mesh, order, data, rhs_data_fluid, bc_d='left|bottom|r
     V = VectorH1(mesh, order=order, dirichlet=bc_d)
     Q = H1(mesh, order=order - 1, definedon='fluid')
     D = VectorH1(mesh, order=order, dirichlet=bc_d)
-    X = FESpace([V, Q, D])
-    Y = FESpace([V, Q])
-    (u, p, d), (v, q, w) = X.TnT()
+    N = NumberSpace(mesh, definedon='fluid')
+    X = V * Q * D * N
+    (u, p, d, lam), (v, q, w, mu) = X.TnT()
+    Y = V * Q * N
+    (_u, _p, _lam), (_v, _q, _mu) = Y.TnT()
 
     gfu = GridFunction(X)
     if info:
-        print(f'Number of FreeDofs of product space = {sum(X.FreeDofs(condense))}')
+        print(f'Nr FreeDofs of FSI space = {sum(X.FreeDofs(condense))}')
 
     # --------------------------- (BI)LINEAR FORMS ----------------------------
     Id2 = Id(2)
@@ -75,7 +85,8 @@ def stationary_stokes_fsi(mesh, order, data, rhs_data_fluid, bc_d='left|bottom|r
 
     diff_fl = rhof * nuf * InnerProduct(J * stress_fl * FinvT, grad(v))
     pres_fl = -J * (Trace(grad(v) * Finv) * p + Trace(grad(u) * Finv) * q)
-    pres_fl += - J * 1e-9 * p * q
+    # pres_fl += - J * 1e-9 * p * q
+    pres_fl += - J * lam * q - J * mu * p
 
     rhs_fl = - InnerProduct(rhof * J * rhs_data_fluid, v)
 
@@ -95,8 +106,8 @@ def stationary_stokes_fsi(mesh, order, data, rhs_data_fluid, bc_d='left|bottom|r
 
         extension = 1 / (1 - gfdist + 1e-2) * 1e-8 * NeoHookExt(C)
 
-    stokes = nuf * rhof * InnerProduct(grad(u), grad(v))
-    stokes += - div(u) * q - div(v) * p - 1e-9 * p * q
+    stokes = nuf * rhof * InnerProduct(grad(_u), grad(_v))
+    stokes += - div(_u) * _q - div(_v) * _p - _lam * _q - _mu * _p
 
     # ------------------------------ INTEGRATORS ------------------------------
     comp_opt = {'realcompile': compile_flag, 'wait': True}
@@ -123,19 +134,28 @@ def stationary_stokes_fsi(mesh, order, data, rhs_data_fluid, bc_d='left|bottom|r
 
     # ----------------------------- SOLVE PROBLEM -----------------------------
     bts = Y.FreeDofs() & ~Y.GetDofs(mesh.Materials('solid'))
-    bts &= ~Y.GetDofs(mesh.Boundaries('out|interface'))
-    bts[Y.Range(1)] = True
+    bnd_dofs = V.GetDofs(mesh.Boundaries(f'out|interface|{bc_d}|{bc_d_ih}'))
+    for i in range(V.ndof):
+        if bnd_dofs[i]:
+            bts[i] = False
 
-    rstokes = GridFunction(Y)
+    gfu_stokes = GridFunction(Y)
+    res_stokes = gfu_stokes.vec.CreateVector()
 
     a_stokes.Assemble()
     f_stokes.Assemble()
-    invstoke = a_stokes.mat.Inverse(bts, inverse='sparsecholesky')
+    res_stokes.data = f_stokes.vec
 
-    rstokes.vec.data = invstoke * f_stokes.vec
+    invstoke = a_stokes.mat.Inverse(bts, inverse=inverse)
 
-    gfu.components[0].vec.data = rstokes.components[0].vec
-    gfu.components[1].vec.data = rstokes.components[1].vec
+    if u_d_ih is not None and bc_d_ih is not None:
+        gfu_stokes.components[0].Set(u_d_ih, definedon=mesh.Boundaries(bc_d_ih))
+        res_stokes.data -= a_stokes.mat * gfu_stokes.vec
+
+    gfu_stokes.vec.data += invstoke * res_stokes
+
+    gfu.components[0].vec.data = gfu_stokes.components[0].vec
+    gfu.components[1].vec.data = gfu_stokes.components[1].vec
 
     Newton(a, gfu, maxit=10, inverse=inverse, maxerr=newton_tol,
            dampfactor=newton_damp, printing=info)

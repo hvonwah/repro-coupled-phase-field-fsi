@@ -3,7 +3,7 @@
 
 git clone https://github.com/NGSolve/ngsolve.git src-ngs
 cd src-ngs
-git checkout 10c791b00cd06f8719d68baca72885f676784062
+git checkout edae438d7971be14afba83d4c9cccbffd08f9a9c
 git submodule update --recursive --init
 
 cd ..
@@ -38,7 +38,7 @@ make install
 cd ..
 git clone git@gitlab.gwdg.de:lehrenfeld/ngsxfem.git src-xfem
 cd src-xfem
-git checkout 7bc5e4353c0fb919dd6c46df76769f518dc124ad
+git checkout e412940a890b2b357217c0ab4077ee486688ad45
 cd ..
 
 mkdir build-xfem

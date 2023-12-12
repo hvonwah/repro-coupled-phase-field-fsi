@@ -13,9 +13,14 @@ This repository contains the reproduction scripts and resulting data for the wor
 +- README.md                                   // This file
 +- LICENSE                                     // The licence file
 +- install.txt                                 // Installation help
-+- convergence_study_formulation_interface.py  // Main file for Example 1
-+- convergence_sneddon_coupled_stationary.py   // Main file for Example 2 
-+- time_dep_phase_field.py                     // Main file for Example 3
++- example_1_convergence_study_interface_formulation_sneddon.py  // Example 1 main file
++- example_1_run.bash						   // Run example 1 
++- example_2_convergence_sneddon_coupled_stationary.py  // Example 2 main file
++- example_2_run.bash                          // Run example 2
++- example_3_convergence_inflow.py             // Example 3 main file
++- example_3_run.bash                          // Run example 3
++- example_4_coupled_time_dependent_phase_field.py  // Example 4 main file
++- example_4_run.bash                          // Run example 4
 +- meshes.py                                   // Functions to construct meshes
 +- phase_field.py                              // Implementation of the phase-field problem
 +- sneddon.py                                  // Functions to compute exact Sneddon COD and TCV
@@ -30,7 +35,6 @@ See the instructions in `install.txt`
 # How to reproduce
 The scripts to reproduce the computational results are located in the base folder. The resulting data is located in the `results` directory.
 
-The individual convergence studies presented (Examples 1 and 2) are computed using the `convergence_*.py` scripts. Example 3 can be computed using 
-`time_dep_phase_field.py ` and setting the mesh parameter to reproduce our results.
+The individual examples are implemented the `example_*.py` scripts. These can be executed ith the parameters as presented in the manuscript using the bash scripts `example_*.bash.`
 
-By default, the direct solver `pardiso` is used to solve the linear systems resulting from the discretisation. If this is not available, this may be replaced with `umfpack` in the `DATA` block of each convergence study script.
+By default, the direct solver `pardiso` is used to solve the linear systems resulting from the discretisation. If this is not available, this may be replaced with `umfpack` in the `DATA` block of each example python study script.
